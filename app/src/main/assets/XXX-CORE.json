@@ -1,0 +1,61 @@
+{
+  "log": { "level": "info" },
+  "dns": {
+    "servers": [{ "tag": "google", "address": "tls://8.8.8.8" }],
+    "final": "google"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "address": ["172.19.0.1/30"],
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "system"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "XXX-CORE 2.0 PRO - ORANGE",
+      "server": "ahmed-vip1-463820686602.us-east4.run.app",
+      "server_port": 443,
+      "uuid": "aaaa1111-bbbb-4ccc-8ddd-eeeeffff0000",
+      "flow": "",
+      "packet_encoding": "none",
+      "transport": {
+        "type": "ws",
+        "path": "/Telegram/@AM2_D3/@AHMAD3214",
+        "headers": {
+          "Host": "ahmed-vip1-463820686602.us-east4.run.app",
+          "User-Agent": "Mozilla/5.0"
+        },
+        "max_early_data": 2048,
+        "early_data_header_name": "Sec-WebSocket-Protocol"
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "crashlyticsreports-pa.googleapis.com",
+        "insecure": false,
+        "alpn": ["h2", "http/1.1"],
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "multiplex": { "enabled": false }
+    },
+    { "type": "direct", "tag": "direct" },
+    { "type": "block", "tag": "block" },
+    { "type": "dns", "tag": "dns-out" }
+  ],
+  "route": {
+    "rules": [
+      { "protocol": "dns", "outbound": "dns-out" },
+      { "inbound": "tun-in", "outbound": "XXX-CORE 2.0 PRO - ORANGE" }
+    ],
+    "final": "XXX-CORE 2.0 PRO - ORANGE",
+    "auto_detect_interface": true
+  }
+}
