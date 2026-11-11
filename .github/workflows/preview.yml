@@ -1,180 +1,64 @@
-name: Build Android APK (Expo)
+name: Build XXX-CORE-2.0 PRO VPN
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch: # Allow manual trigger from Actions tab
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: Build APK
+  build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-
-    # Required so the built-in GITHUB_TOKEN can create releases in THIS repo
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Setup Expo
-        run: npm install -g eas-cli
-
-      - name: Prebuild Android (Expo)
-        run: npx expo prebuild --platform android --clean
-
-      - name: Setup Java JDK
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
-          java-version: "17"
-          cache: "gradle"
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            android/.gradle
-            android/app/build
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Cache Node modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Generate Codegen Artifacts (New Architecture)
-        env:
-          NODE_ENV: production
+      - name: Build Android Release APK
         run: |
           cd android
-          ./gradlew generateCodegenArtifactsFromSchema \
-            --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m"
+          ./gradlew assembleRelease --no-daemon
 
-      - name: Build APK
-        env:
-          NODE_ENV: production
+      - name: Rename APK
         run: |
-          cd android
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --parallel \
-            --build-cache \
-            --configure-on-demand \
-            --max-workers=2 \
-            -Dorg.gradle.jvmargs="-Xmx2048m -XX:MaxMetaspaceSize=512m" \
-            -Dorg.gradle.caching=true \
-            -Dorg.gradle.configureondemand=true \
-            -Dkotlin.incremental=true
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "APK trouvé : $APK_PATH"
+          cp "$APK_PATH" XXX-CORE-2.0-PRO-VPN.apk
+          ls -lh XXX-CORE-2.0-PRO-VPN.apk
 
-      - name: Upload APK as Artifact (Backup)
+      - name: Upload APK as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lokalmusic-release-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          name: XXX-CORE-2.0-PRO-VPN
+          path: XXX-CORE-2.0-PRO-VPN.apk
           retention-days: 30
 
-      - name: Get version info
-        id: version
-        run: |
-          echo "date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
-          echo "time=$(date +'%H%M')" >> $GITHUB_OUTPUT
-          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Rename APK with app name
-        run: |
-          # Find the generated APK (Expo may generate app-release.apk or app-universal-release.apk)
-          if [ -f android/app/build/outputs/apk/release/app-universal-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-universal-release.apk android/app/build/outputs/apk/release/LokalMusic.apk
-          elif [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/LokalMusic.apk
-          else
-            echo "APK not found in expected location"
-            ls -la android/app/build/outputs/apk/release/
-            exit 1
-          fi
-
-      - name: Create Public Release
+      - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # No `repository:` key -> release is created in the repo running this workflow
-          tag_name: lokalmusic-v${{ steps.version.outputs.date }}-${{ steps.version.outputs.time }}
-          name: LokalMusic v${{ steps.version.outputs.date }}
-          make_latest: true
+          tag_name: v2.0.0
+          name: XXX-CORE-2.0 PRO VPN v2.0.0
           body: |
-            ## 📱 LokalMusic - Latest Build
-
-            **🎉 Click the APK below to download and install!**
-
-            ---
-
-            ### 📦 Download
-            👇 Click **LokalMusic.apk** below to download
-
-            ### ℹ️ How to Install
-            1. Download the APK file
-            2. Open it on your Android phone
-            3. Enable "Install from unknown sources" if asked
-            4. Click Install
-            5. Done! 🚀
-
-            ---
-
-            **Build Info:**
-            - 📅 Date: ${{ steps.version.outputs.date }} at ${{ steps.version.outputs.time }} UTC
-            - 🔗 Commit: ${{ steps.version.outputs.sha_short }}
-            - 🏗️ Built by: GitHub Actions
-
-            ---
-
-            **Note:** Full source code is available in this repository.
-
-            *Auto-generated release*
-          files: |
-            android/app/build/outputs/apk/release/LokalMusic.apk
+            ## XXX-CORE-2.0 PRO VPN
+            ### 📱 Télécharger et Installer
+            1. Télécharge XXX-CORE-2.0-PRO-VPN.apk
+            2. Ouvre le fichier sur ton téléphone
+            3. Autorise "Sources inconnues" si demandé
+            4. Installe et Connecte 🚀
+            
+            **Protocoles:** VLESS / VMESS / SSH / Trojan
+          files: XXX-CORE-2.0-PRO-VPN.apk
           draft: false
           prerelease: false
-
-      - name: Build Summary
-        if: success()
-        run: |
-          echo "## ✅ APK Built & Published!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🌐 PUBLIC Download Links:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Share these with ANYONE:**" >> $GITHUB_STEP_SUMMARY
-          echo "- 📱 Latest LokalMusic: https://github.com/navedsayyed/LokalMusic/releases/latest" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔗 Direct Download: https://github.com/navedsayyed/LokalMusic/releases/latest/download/LokalMusic.apk" >> $GITHUB_STEP_SUMMARY
-          echo "- 📚 All Builds: https://github.com/navedsayyed/LokalMusic/releases" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f android/app/build/outputs/apk/release/LokalMusic.apk ]; then
-            APK_SIZE=$(ls -lh android/app/build/outputs/apk/release/LokalMusic.apk | awk '{print $5}')
-            echo "**APK Size:** $APK_SIZE" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ APK published to releases in this repo" >> $GITHUB_STEP_SUMMARY
+          make_latest: true
