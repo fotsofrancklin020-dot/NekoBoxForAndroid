@@ -1,64 +1,89 @@
-name: Build XXX-CORE-2.0 PRO VPN
+
+name: Preview Build
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-android:
+  libcore:
+    name: Native Build (LibCore)
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Golang Status
+        run: find buildScript libcore/*.sh | xargs cat | sha1sum > golang_status
+
+      - name: Libcore Status
+        run: git ls-files libcore | xargs cat | sha1sum > libcore_status
+
+      - name: LibCore Cache
+        id: cache
+        uses: actions/cache@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
+          path: app/libs/libcore.aar
+          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x android/gradlew
+      - name: Install Golang
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ^1.25
 
-      - name: Build Android Release APK
+      - name: Native Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./run lib core
+
+  build:
+    name: Build OSS APK
+    runs-on: ubuntu-latest
+    needs: libcore
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Golang Status
+        run: find buildScript libcore/*.sh | xargs cat | sha1sum > golang_status
+
+      - name: Libcore Status
+        run: git ls-files libcore | xargs cat | sha1sum > libcore_status
+
+      - name: LibCore Cache
+        uses: actions/cache@v4
+        with:
+          path: app/libs/libcore.aar
+          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-oss-${{ hashFiles('**/*.gradle.kts') }}
+
+      - name: Gradle Build
+        env:
+          BUILD_PLUGIN: none
         run: |
-          cd android
-          ./gradlew assembleRelease --no-daemon
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
+          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
+          ./run init action gradle
+          ./gradlew app:assemblePreviewRelease
 
-      - name: Rename APK
-        run: |
-          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          echo "APK trouvé : $APK_PATH"
-          cp "$APK_PATH" XXX-CORE-2.0-PRO-VPN.apk
-          ls -lh XXX-CORE-2.0-PRO-VPN.apk
+          APK=$(find app/build/outputs/apk -name '*arm64-v8a*.apk' | head -n 1)
+          test -n "$APK"
+          mkdir -p output
+          cp "$APK" output/NekoBox-arm64.apk
 
-      - name: Upload APK as Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: XXX-CORE-2.0-PRO-VPN
-          path: XXX-CORE-2.0-PRO-VPN.apk
+          name: NekoBox-APK
+          path: output/NekoBox-arm64.apk
           retention-days: 30
-
-      - name: Create Release and Upload APK
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v2.0.0
-          name: XXX-CORE-2.0 PRO VPN v2.0.0
-          body: |
-            ## XXX-CORE-2.0 PRO VPN
-            ### 📱 Télécharger et Installer
-            1. Télécharge XXX-CORE-2.0-PRO-VPN.apk
-            2. Ouvre le fichier sur ton téléphone
-            3. Autorise "Sources inconnues" si demandé
-            4. Installe et Connecte 🚀
-            
-            **Protocoles:** VLESS / VMESS / SSH / Trojan
-          files: XXX-CORE-2.0-PRO-VPN.apk
-          draft: false
-          prerelease: false
-          make_latest: true
